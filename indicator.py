@@ -48,6 +48,10 @@ def ema(source, period):
     # alpha = 2.0 / (period + 1)
     return source.ewm(span=period).mean()
 
+def nma(source, N, period):
+    alpha = N / (max(period, N) + 1)
+    return source.ewm(alpha=alpha).mean()
+
 def dema(source, period):
     ema = source.ewm(span=period).mean()
     return (ema * 2) - ema.ewm(span=period).mean()
@@ -71,7 +75,11 @@ def lowest(source, period):
 
 def stdev(source, period):
     period = int(period)
-    return source.rolling(period).std()
+    return source.rolling(period,min_periods=1).std()
+
+def variance(source, period):
+    period = int(period)
+    return source.rolling(period,min_periods=1).var()
 
 def rsi(source, period):
     diff = source.diff()
@@ -161,7 +169,7 @@ def wvf_inv(close, high, period = 22, bbl = 20, mult = 2.0, lb = 50, ph = 0.85, 
     return (wvf_inv, lowerBand, upperBand, rangeHigh, rangeLow)
 
 def tr(close, high, low):
-    last = close.shift(1).fillna(close[0])
+    last = close.shift(1).fillna(method='ffill')
     tr = high - low
     diff_hc = (high - last).abs()
     diff_lc = (low - last).abs()
@@ -170,7 +178,7 @@ def tr(close, high, low):
     return tr
 
 def atr(close, high, low, period):
-    last = close.shift(1).fillna(close[0])
+    last = close.shift(1).fillna(method='ffill')
     tr = high - low
     diff_hc = (high - last).abs()
     diff_lc = (low - last).abs()
@@ -200,13 +208,19 @@ def totuple(source):
 def tolist(source):
     return list(source.values.flatten())
 
-def change(source, length=1):
-    return source.diff(length).fillna(0)
+def change(source, period=1):
+    return source.diff(period).fillna(0)
 
-def fallingcnt(source, period):
+def falling(source, period=1):
+    return source.diff(period).fillna(0)<0
+
+def rising(source, period=1):
+    return source.diff(period).fillna(0)>0
+
+def fallingcnt(source, period=1):
     return (source.diff()<0).rolling(period, min_periods=1).sum()
 
-def risingcnt(source, period):
+def risingcnt(source, period=1):
     return (source.diff()>0).rolling(period, min_periods=1).sum()
 
 def pivothigh(source, leftbars, rightbars):
@@ -293,15 +307,19 @@ def sar(high, low, start, inc, max):
                 sar[i] = ep
     return pd.Series(sar, index=index)
 
-def minimum(a, b, period):
+def minimum(a, b, period=1):
     c = a.copy()
     c[a > b] = b
+    if period < 2:
+        return c
     period = int(period)
     return c.rolling(period).min()
 
-def maximum(a, b, period):
+def maximum(a, b, period=1):
     c = a.copy()
     c[a < b] = b
+    if period < 2:
+        return c
     period = int(period)
     return c.rolling(period).max()
 
